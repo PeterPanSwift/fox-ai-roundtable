@@ -52,6 +52,9 @@ function run(cmd, args, { input } = {}) {
     const child = spawn(cmd, args, { env: cleanEnv(), cwd: WORKSPACE });
     let stdout = '', stderr = '';
     const timer = setTimeout(() => child.kill('SIGKILL'), TIMEOUT_MS);
+    // setEncoding 讓 StringDecoder 處理跨 chunk 的多位元組字元，避免中文或 emoji 變成 �
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
     child.stdout.on('data', (d) => (stdout += d));
     child.stderr.on('data', (d) => (stderr += d));
     if (input !== undefined) { child.stdin.write(input); }
