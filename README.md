@@ -31,6 +31,7 @@ node server.js
 - 按「新對話」清除三家的對話記憶
 - 上方勾選框可只問其中幾家
 - 回答以 Markdown 渲染，支援深色模式
+- 介面中英雙語：系統語言是中文時顯示中文，否則顯示英文，右上角可手動切換（UI auto-switches between Traditional Chinese and English based on your system language）
 
 ## 運作方式
 

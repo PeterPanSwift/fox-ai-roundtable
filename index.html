@@ -21,9 +21,15 @@
          font: 15px/1.65 -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; }
   .wrap { max-width: 1280px; margin: 0 auto; padding: 24px 20px 80px; }
   h1 { font-size: 20px; margin: 0 0 16px; }
-  h1 span { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: 10px; }
+  h1 #t-sub { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: 10px; }
   .topbar { display: flex; align-items: center; gap: 14px; }
   .topbar h1 { flex: 1; }
+  button.lang { border: 1px solid var(--line); background: var(--card); color: var(--muted);
+                border-radius: 8px; padding: 4px 10px; cursor: pointer; font: inherit;
+                font-size: 13px; flex: none; }
+  button.lang:hover { color: var(--ink); }
+  .q::before { content: "你："; color: var(--muted); font-weight: 400; }
+  html[lang="en"] .q::before { content: "You: "; }
   .fox { width: 92px; height: 92px; border-radius: 50%; object-fit: cover; flex: none;
          border: 2px solid var(--line); box-shadow: 0 4px 14px rgba(0,0,0,.12);
          animation: bob 3.2s ease-in-out infinite; }
@@ -51,7 +57,6 @@
 
   .round { margin-bottom: 32px; }
   .round .q { font-weight: 600; margin: 0 0 10px; white-space: pre-wrap; }
-  .round .q::before { content: "你："; color: var(--muted); font-weight: 400; }
   .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
   @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
 
@@ -81,28 +86,80 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <h1>小狐狸的 AI 圓桌 <span>同一個問題，三個 AI 一起回答</span></h1>
-    <img class="fox" src="fox.png" alt="拿著乒乓球拍和 MacBook 的小白狐">
+    <h1><span id="t-title">小狐狸的 AI 圓桌</span> <span id="t-sub">同一個問題，三個 AI 一起回答</span></h1>
+    <button class="lang" id="langBtn" title="Switch language">EN</button>
+    <img class="fox" src="fox.png" alt="">
   </div>
 
   <div class="toggles">
-    <label><input type="checkbox" id="on-claude" checked> Claude</label>
-    <label><input type="checkbox" id="on-codex" checked> Codex（GPT）</label>
-    <label><input type="checkbox" id="on-gemini" checked> Antigravity（Gemini）</label>
+    <label><input type="checkbox" id="on-claude" checked> <span id="t-name-claude">Claude</span></label>
+    <label><input type="checkbox" id="on-codex" checked> <span id="t-name-codex">Codex（GPT）</span></label>
+    <label><input type="checkbox" id="on-gemini" checked> <span id="t-name-gemini">Antigravity（Gemini）</span></label>
   </div>
   <div class="ask">
-    <textarea id="prompt" placeholder="輸入你的問題…（⌘ + Enter 送出）" autofocus></textarea>
+    <textarea id="prompt" autofocus></textarea>
     <button class="send" id="send">送出</button>
-    <button class="reset" id="reset" title="清除三個 AI 的對話記憶，開始新對話">新對話</button>
+    <button class="reset" id="reset">新對話</button>
   </div>
-  <p class="hint">回答透過本機的 Claude CLI、Codex CLI、Antigravity CLI（agy）產生，通常需要 10 秒到 1 分鐘。三個 AI 都會記得同一場對話的上下文，按「新對話」可重新開始。</p>
+  <p class="hint" id="t-hint"></p>
 
   <div id="rounds"></div>
 </div>
 
 <script>
-const NAMES = { claude: 'Claude', codex: 'Codex（GPT）', gemini: 'Antigravity（Gemini）' };
+const I18N = {
+  zh: {
+    title: '小狐狸的 AI 圓桌',
+    sub: '同一個問題，三個 AI 一起回答',
+    placeholder: '輸入你的問題…（⌘ + Enter 送出）',
+    send: '送出', sending: '回覆中…',
+    reset: '新對話', resetTitle: '清除三個 AI 的對話記憶，開始新對話',
+    hint: '回答透過本機的 Claude CLI、Codex CLI、Antigravity CLI（agy）產生，通常需要 10 秒到 1 分鐘。三個 AI 都會記得同一場對話的上下文，按「新對話」可重新開始。',
+    names: { claude: 'Claude', codex: 'Codex（GPT）', gemini: 'Antigravity（Gemini）' },
+    waiting: '思考中',
+    sec: (s) => s + ' 秒',
+    divider: '新對話',
+    errPrefix: '出錯了：\n', connFail: '連線失敗：', unknown: '未知錯誤',
+    foxAlt: '拿著乒乓球拍和 MacBook 的小白狐',
+    langBtn: 'EN', htmlLang: 'zh-Hant',
+  },
+  en: {
+    title: 'Fox AI Roundtable',
+    sub: 'One question, three AIs answer together',
+    placeholder: 'Ask anything… (⌘ + Enter to send)',
+    send: 'Send', sending: 'Waiting…',
+    reset: 'New chat', resetTitle: "Clear all three AIs' memory and start fresh",
+    hint: 'Answers are generated locally by the Claude CLI, Codex CLI and Antigravity CLI (agy), usually within 10s–1min. All three AIs remember the conversation context — click "New chat" to start over.',
+    names: { claude: 'Claude', codex: 'Codex (GPT)', gemini: 'Antigravity (Gemini)' },
+    waiting: 'Thinking',
+    sec: (s) => s + 's',
+    divider: 'New chat',
+    errPrefix: 'Error:\n', connFail: 'Request failed: ', unknown: 'unknown error',
+    foxAlt: 'A little white fox holding a ping-pong paddle and a MacBook',
+    langBtn: '中', htmlLang: 'en',
+  },
+};
+
+let lang = localStorage.getItem('lang') || (navigator.language.toLowerCase().startsWith('zh') ? 'zh' : 'en');
+let L = I18N[lang];
+
 const $ = (id) => document.getElementById(id);
+
+function applyLang() {
+  L = I18N[lang];
+  document.documentElement.lang = L.htmlLang;
+  document.title = L.title;
+  $('t-title').textContent = L.title;
+  $('t-sub').textContent = L.sub;
+  $('t-hint').textContent = L.hint;
+  $('prompt').placeholder = L.placeholder;
+  $('send').textContent = pending > 0 ? L.sending : L.send;
+  $('reset').textContent = L.reset;
+  $('reset').title = L.resetTitle;
+  $('langBtn').textContent = L.langBtn;
+  document.querySelector('.fox').alt = L.foxAlt;
+  for (const p of ['claude', 'codex', 'gemini']) $('t-name-' + p).textContent = L.names[p];
+}
 
 function render(md) {
   if (window.marked && window.DOMPurify) {
@@ -118,7 +175,7 @@ function setPending(delta) {
   pending += delta;
   const btn = $('send');
   btn.disabled = pending > 0;
-  btn.textContent = pending > 0 ? '回覆中…' : '送出';
+  btn.textContent = pending > 0 ? L.sending : L.send;
 }
 
 async function askOne(provider, prompt, card) {
@@ -126,7 +183,7 @@ async function askOne(provider, prompt, card) {
   const meta = card.querySelector('.meta');
   const t0 = Date.now();
   setPending(1);
-  const tick = setInterval(() => { meta.textContent = ((Date.now() - t0) / 1000).toFixed(0) + ' 秒'; }, 1000);
+  const tick = setInterval(() => { meta.textContent = L.sec(((Date.now() - t0) / 1000).toFixed(0)); }, 1000);
   try {
     const res = await fetch('/api/ask', {
       method: 'POST',
@@ -135,18 +192,18 @@ async function askOne(provider, prompt, card) {
     });
     const data = await res.json();
     clearInterval(tick);
-    meta.textContent = ((data.elapsed ?? (Date.now() - t0)) / 1000).toFixed(1) + ' 秒';
+    meta.textContent = L.sec(((data.elapsed ?? (Date.now() - t0)) / 1000).toFixed(1));
     if (data.ok) {
       body.innerHTML = render(data.answer);
     } else {
       body.innerHTML = '<div class="err"></div>';
-      body.firstChild.textContent = '出錯了：\n' + (data.error || '未知錯誤');
+      body.firstChild.textContent = L.errPrefix + (data.error || L.unknown);
     }
   } catch (err) {
     clearInterval(tick);
     meta.textContent = '';
     body.innerHTML = '<div class="err"></div>';
-    body.firstChild.textContent = '連線失敗：' + err;
+    body.firstChild.textContent = L.connFail + err;
   } finally {
     setPending(-1);
   }
@@ -171,8 +228,9 @@ function ask() {
   for (const p of enabled) {
     const card = document.createElement('div');
     card.className = 'card ' + p;
-    card.innerHTML = '<header><span class="dot"></span>' + NAMES[p] +
-      '<span class="meta"></span></header><div class="body"><span class="waiting">思考中</span></div>';
+    card.innerHTML = '<header><span class="dot"></span>' + L.names[p] +
+      '<span class="meta"></span></header><div class="body"><span class="waiting"></span></div>';
+    card.querySelector('.waiting').textContent = L.waiting;
     cols.appendChild(card);
     askOne(p, prompt, card);
   }
@@ -185,10 +243,16 @@ $('reset').addEventListener('click', async () => {
   await fetch('/api/reset', { method: 'POST' });
   const divider = document.createElement('div');
   divider.className = 'divider';
-  divider.textContent = '新對話';
+  divider.textContent = L.divider;
   $('rounds').prepend(divider);
   $('prompt').focus();
 });
+$('langBtn').addEventListener('click', () => {
+  lang = lang === 'zh' ? 'en' : 'zh';
+  localStorage.setItem('lang', lang);
+  applyLang();
+});
+applyLang();
 $('prompt').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); ask(); }
 });

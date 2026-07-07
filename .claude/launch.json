@@ -5,7 +5,8 @@
       "name": "multi-ai-chat",
       "runtimeExecutable": "node",
       "runtimeArgs": ["server.js"],
-      "port": 3457
+      "port": 3457,
+      "autoPort": true
     }
   ]
 }

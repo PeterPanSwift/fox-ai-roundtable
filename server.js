@@ -8,7 +8,7 @@ const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 
-const PORT = 3457;
+const PORT = Number(process.env.PORT) || 3457;
 const TIMEOUT_MS = 180_000;
 
 // 避免巢狀 CLI 偵測到彼此的環境變數而行為異常
@@ -128,14 +128,14 @@ const server = http.createServer(async (req, res) => {
       let provider, prompt;
       try { ({ provider, prompt } = JSON.parse(body)); } catch {}
       if (!providers[provider] || typeof prompt !== 'string' || !prompt.trim()) {
-        return json(res, 400, { ok: false, error: 'provider 或 prompt 不正確' });
+        return json(res, 400, { ok: false, error: 'provider 或 prompt 不正確 / invalid provider or prompt' });
       }
       try {
         const r = await providers[provider](prompt.trim());
         if (r.answer) {
           json(res, 200, { ok: true, answer: r.answer, elapsed: r.elapsed });
         } else {
-          json(res, 200, { ok: false, error: (r.stderr || '沒有輸出').trim().slice(-2000), elapsed: r.elapsed });
+          json(res, 200, { ok: false, error: (r.stderr || '沒有輸出 / no output').trim().slice(-2000), elapsed: r.elapsed });
         }
       } catch (err) {
         json(res, 500, { ok: false, error: String(err) });
