@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小狐狸的 AI 圓桌</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f4f0; --card: #ffffff; --ink: #1f1e1c; --muted: #8a867e;
+    --line: #e4e1da; --accent: #b05730;
+    --claude: #cc7854; --codex: #10a37f; --gemini: #4285f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #191817; --card: #232220; --ink: #ece9e3; --muted: #979289;
+            --line: #37352f; --accent: #d98d5f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.65 -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 24px 20px 80px; }
+  h1 { font-size: 20px; margin: 0 0 16px; }
+  h1 span { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: 10px; }
+  .topbar { display: flex; align-items: center; gap: 14px; }
+  .topbar h1 { flex: 1; }
+  .fox { width: 92px; height: 92px; border-radius: 50%; object-fit: cover; flex: none;
+         border: 2px solid var(--line); box-shadow: 0 4px 14px rgba(0,0,0,.12);
+         animation: bob 3.2s ease-in-out infinite; }
+  @keyframes bob { 0%, 100% { transform: translateY(0) rotate(-2deg); }
+                   50% { transform: translateY(-5px) rotate(2deg); } }
+  @media (max-width: 600px) { .fox { width: 64px; height: 64px; } }
+
+  .ask { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 12px; }
+  textarea { flex: 1; min-height: 72px; max-height: 240px; resize: vertical;
+             padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px;
+             background: var(--card); color: var(--ink); font: inherit; }
+  textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  button.send { padding: 12px 22px; border: 0; border-radius: 12px; cursor: pointer;
+                background: var(--accent); color: #fff; font: inherit; font-weight: 600; }
+  button.send:disabled { opacity: .5; cursor: not-allowed; }
+  button.reset { padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px;
+                 cursor: pointer; background: var(--card); color: var(--muted); font: inherit; }
+  button.reset:hover { color: var(--ink); }
+  .divider { display: flex; align-items: center; gap: 12px; color: var(--muted);
+             font-size: 12.5px; margin: 28px 0; }
+  .divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+  .hint { color: var(--muted); font-size: 12.5px; margin: 0 0 24px; }
+  .toggles { display: flex; gap: 16px; margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+  .toggles label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
+
+  .round { margin-bottom: 32px; }
+  .round .q { font-weight: 600; margin: 0 0 10px; white-space: pre-wrap; }
+  .round .q::before { content: "你："; color: var(--muted); font-weight: 400; }
+  .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+          padding: 14px 16px; min-height: 90px; }
+  .card header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+                 font-weight: 600; font-size: 14px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .card .meta { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12px; }
+  .card.claude .dot { background: var(--claude); }
+  .card.codex  .dot { background: var(--codex); }
+  .card.gemini .dot { background: var(--gemini); }
+
+  .body { font-size: 14.5px; overflow-wrap: break-word; }
+  .body > :first-child { margin-top: 0; } .body > :last-child { margin-bottom: 0; }
+  .body pre { background: rgba(128,128,128,.12); padding: 10px 12px; border-radius: 8px;
+              overflow-x: auto; font-size: 13px; }
+  .body code { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .body p code, .body li code { background: rgba(128,128,128,.15); padding: 1px 5px; border-radius: 4px; }
+  .body table { border-collapse: collapse; } .body td, .body th { border: 1px solid var(--line); padding: 4px 8px; }
+  .err { color: #c0392b; white-space: pre-wrap; font-size: 13px; }
+  .waiting { color: var(--muted); }
+  .waiting::after { content: ""; display: inline-block; width: 1em; animation: dots 1.2s steps(4) infinite; }
+  @keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <h1>小狐狸的 AI 圓桌 <span>同一個問題，三個 AI 一起回答</span></h1>
+    <img class="fox" src="fox.png" alt="拿著乒乓球拍和 MacBook 的小白狐">
+  </div>
+
+  <div class="toggles">
+    <label><input type="checkbox" id="on-claude" checked> Claude</label>
+    <label><input type="checkbox" id="on-codex" checked> Codex（GPT）</label>
+    <label><input type="checkbox" id="on-gemini" checked> Antigravity（Gemini）</label>
+  </div>
+  <div class="ask">
+    <textarea id="prompt" placeholder="輸入你的問題…（⌘ + Enter 送出）" autofocus></textarea>
+    <button class="send" id="send">送出</button>
+    <button class="reset" id="reset" title="清除三個 AI 的對話記憶，開始新對話">新對話</button>
+  </div>
+  <p class="hint">回答透過本機的 Claude CLI、Codex CLI、Antigravity CLI（agy）產生，通常需要 10 秒到 1 分鐘。三個 AI 都會記得同一場對話的上下文，按「新對話」可重新開始。</p>
+
+  <div id="rounds"></div>
+</div>
+
+<script>
+const NAMES = { claude: 'Claude', codex: 'Codex（GPT）', gemini: 'Antigravity（Gemini）' };
+const $ = (id) => document.getElementById(id);
+
+function render(md) {
+  if (window.marked && window.DOMPurify) {
+    return DOMPurify.sanitize(marked.parse(md));
+  }
+  const div = document.createElement('div');
+  div.textContent = md;
+  return '<pre style="white-space:pre-wrap">' + div.innerHTML + '</pre>';
+}
+
+let pending = 0;
+function setPending(delta) {
+  pending += delta;
+  const btn = $('send');
+  btn.disabled = pending > 0;
+  btn.textContent = pending > 0 ? '回覆中…' : '送出';
+}
+
+async function askOne(provider, prompt, card) {
+  const body = card.querySelector('.body');
+  const meta = card.querySelector('.meta');
+  const t0 = Date.now();
+  setPending(1);
+  const tick = setInterval(() => { meta.textContent = ((Date.now() - t0) / 1000).toFixed(0) + ' 秒'; }, 1000);
+  try {
+    const res = await fetch('/api/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, prompt }),
+    });
+    const data = await res.json();
+    clearInterval(tick);
+    meta.textContent = ((data.elapsed ?? (Date.now() - t0)) / 1000).toFixed(1) + ' 秒';
+    if (data.ok) {
+      body.innerHTML = render(data.answer);
+    } else {
+      body.innerHTML = '<div class="err"></div>';
+      body.firstChild.textContent = '出錯了：\n' + (data.error || '未知錯誤');
+    }
+  } catch (err) {
+    clearInterval(tick);
+    meta.textContent = '';
+    body.innerHTML = '<div class="err"></div>';
+    body.firstChild.textContent = '連線失敗：' + err;
+  } finally {
+    setPending(-1);
+  }
+}
+
+function ask() {
+  const prompt = $('prompt').value.trim();
+  if (!prompt) return;
+  const enabled = ['claude', 'codex', 'gemini'].filter((p) => $('on-' + p).checked);
+  if (!enabled.length) return;
+
+  const round = document.createElement('div');
+  round.className = 'round';
+  const q = document.createElement('p');
+  q.className = 'q';
+  q.textContent = prompt;
+  const cols = document.createElement('div');
+  cols.className = 'cols';
+  round.append(q, cols);
+  $('rounds').prepend(round);
+
+  for (const p of enabled) {
+    const card = document.createElement('div');
+    card.className = 'card ' + p;
+    card.innerHTML = '<header><span class="dot"></span>' + NAMES[p] +
+      '<span class="meta"></span></header><div class="body"><span class="waiting">思考中</span></div>';
+    cols.appendChild(card);
+    askOne(p, prompt, card);
+  }
+  $('prompt').value = '';
+  $('prompt').focus();
+}
+
+$('send').addEventListener('click', ask);
+$('reset').addEventListener('click', async () => {
+  await fetch('/api/reset', { method: 'POST' });
+  const divider = document.createElement('div');
+  divider.className = 'divider';
+  divider.textContent = '新對話';
+  $('rounds').prepend(divider);
+  $('prompt').focus();
+});
+$('prompt').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); ask(); }
+});
+</script>
+</body>
+</html>
